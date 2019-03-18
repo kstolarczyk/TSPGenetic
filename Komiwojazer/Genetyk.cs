@@ -99,8 +99,7 @@ namespace Komiwojazer
             }
             osobnicy[ilosc - 1].ocena = 1;
         }
-
-        private 
+        
 
     }
 }
