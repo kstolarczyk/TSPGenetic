@@ -99,7 +99,36 @@ namespace Komiwojazer
             }
             osobnicy[ilosc - 1].ocena = 1;
         }
-        
 
+        private Osobnik SelekcjaRuletka(Osobnik[] osobnicy, int ilosc)
+        {
+            double r = rnd.NextDouble();
+            int left = 0;
+            int right = ilosc;
+            while(true)
+            {
+                int k = left + right / 2;
+                if(r <= osobnicy[k].ocena)
+                {
+                    if (k == left) break;
+                    right = k;
+                }
+                else
+                {
+                    if(k == left) { k = right; break; }
+                    left = k;
+                }
+            }
+        }
+
+        private Osobnik SelekcjaBO3() // best of three
+        {
+
+        }
+        
+        private Osobnik SelekcjaBO5() // best of five
+        {
+
+        }
     }
 }
