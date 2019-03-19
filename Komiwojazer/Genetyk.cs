@@ -103,11 +103,11 @@ namespace Komiwojazer
         private Osobnik SelekcjaRuletka(Osobnik[] osobnicy, int ilosc)
         {
             double r = rnd.NextDouble();
-            int left = 0;
+            int left = 0, k;
             int right = ilosc;
             while(true)
             {
-                int k = left + right / 2;
+                k = left + right / 2;
                 if(r <= osobnicy[k].ocena)
                 {
                     if (k == left) break;
@@ -119,15 +119,44 @@ namespace Komiwojazer
                     left = k;
                 }
             }
+            return osobnicy[k];
         }
 
-        private Osobnik SelekcjaBO3() // best of three
+        private Osobnik SelekcjaBO3(Osobnik[] osobnicy, int ilosc) // best of three
         {
-
+            int r1 = rnd.Next(ilosc);
+            int r2 = rnd.Next(ilosc);
+            int r3 = rnd.Next(ilosc);
+            if(osobnicy[r1].ocena < osobnicy[r2].ocena)
+            {
+                return (osobnicy[r1].ocena < osobnicy[r3].ocena) ? osobnicy[r1] : osobnicy[r2];
+            }
+            else
+            {
+                return (osobnicy[r2].ocena < osobnicy[r3].ocena) ? osobnicy[r2] : osobnicy[r3];
+            }
         }
-        
-        private Osobnik SelekcjaBO5() // best of five
+
+        private Osobnik SelekcjaBO2(Osobnik[] osobnicy, int ilosc) // best of two
         {
+            int r1 = rnd.Next(ilosc);
+            int r2 = rnd.Next(ilosc);
+            return (osobnicy[r1].ocena < osobnicy[r2].ocena) ? osobnicy[r1] : osobnicy[r2];
+        }
+
+        private void ResetVisited(ref bool[] visited)
+        {
+            for(int i = 0; i < visited.Length; i++)
+            {
+                visited[i] = false;
+            }
+        }
+
+        private Osobnik Krzyzuj(Osobnik rodzic1, Osobnik rodzic2, int size)
+        {
+            Osobnik dziecko = new Osobnik(size);
+            bool[] visited = new bool[size];
+            ResetVisited(ref visited);
 
         }
     }
