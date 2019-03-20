@@ -9,6 +9,7 @@ namespace Komiwojazer
 {
     class Program
     {
+
         static void Main(string[] args)
         {
             Console.WriteLine("Wpisz nazwę pliku instancji");
@@ -17,11 +18,16 @@ namespace Komiwojazer
             {
                 Graf graf = new Graf(fileName);
                 Console.WriteLine(graf.ToString());
+                Konfiguracja conf = new Konfiguracja(1000, 0.3, 500, "SelekcjaRuletka", "Ocen2");
+                Genetyk gen = new Genetyk(graf, conf);
+                gen.Start();
+               
             }
             catch(FileNotFoundException e)
             {
                 Console.WriteLine(e.Message);
             }
+            
             Console.ReadKey();
         }
     }

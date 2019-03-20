@@ -10,6 +10,7 @@ namespace Komiwojazer
     {
         public int[] dna { get; set; }
         public double ocena { get; set; }
+        public double p { get; set; }
         public Osobnik(int[] kod) : this(kod.Length)
         {
             int len = kod.Length;
@@ -23,6 +24,12 @@ namespace Komiwojazer
         public Osobnik(int size)
         {
             this.dna = new int[size];
+        }
+
+        public override string ToString()
+        {
+           
+            return "ocena: " + this.ocena + "\n[" + new Func<string>(() => { string val = ""; for (int i = 0; i < this.dna.Length; i++) val += this.dna[i] + ","; return val; })() + "]\n";
         }
     }
 }

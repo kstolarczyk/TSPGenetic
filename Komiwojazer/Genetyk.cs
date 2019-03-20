@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -17,6 +18,7 @@ namespace Komiwojazer
             this.g = graf;
             this.config = konfiguracja;
             this.rnd = new Random();
+            this.GenerujPopulacje();
         }
 
         private void ShuffleArray(ref int[] array)
@@ -25,13 +27,13 @@ namespace Komiwojazer
             for(int i = len-1; i > 0; i--)
             {
                 int j = rnd.Next(0, i+1);
-                this.Swap(ref array[i], ref array[j]);
+                this.Swap<int>(ref array[i], ref array[j]);
             }
         }
 
-        private void Swap(ref int a, ref int b)
+        private void Swap<T>(ref T a, ref T b)
         {
-            int tmp = a;
+            T tmp = a;
             a = b;
             b = tmp;
         }
@@ -39,7 +41,7 @@ namespace Komiwojazer
         private void GenerujPopulacje()
         {
             int size = this.g.size;
-            int ilosc = this.config.iloscPokolen;
+            int ilosc = this.config.rozmiarPopulacji;
             int nadmiar = (int) Math.Floor(this.config.wspolczynnikPotomkow * ilosc);
             this.populacja = new Osobnik[ilosc + nadmiar];
 
@@ -56,59 +58,62 @@ namespace Komiwojazer
             }
         }
 
-        private void Ocen1(ref Osobnik[] osobnicy, int ilosc)
+        public void Ocen1(int start, int count)
         {
-            for (int j = 0; j < ilosc; j++)
+            double avg = 0;
+            for (int j = start; j < start+count; j++)
             {
                 int v = 0;
                 double dlugoscTrasy = 0;
                 for (int i = 0; i < this.g.size; i++)
                 {
-                    int r = osobnicy[j].dna[v];
+                    int r = this.populacja[j].dna[v];
                     dlugoscTrasy += this.g.odleglosci[v, r];
                     v = r;
                 }
-                osobnicy[j].ocena = dlugoscTrasy;
+                this.populacja[j].ocena = dlugoscTrasy;
+                avg += dlugoscTrasy;
             }
+            Console.WriteLine("Średni dystans populacji: {0}", (avg/count));
         }
 
 
 
-        private void Ocen2(ref Osobnik[] osobnicy, int ilosc)
+        public void Ocen2(int start, int count)
         {
             double min = double.PositiveInfinity;
-            for (int j = 0; j < ilosc; j++)
+            for (int j = start; j < start+count; j++)
             {
                 int v = 0;
                 double dlugoscTrasy = 0;
                 for (int i = 0; i < this.g.size; i++)
                 {
-                    int r = osobnicy[j].dna[v];
+                    int r = this.populacja[j].dna[v];
                     dlugoscTrasy += this.g.odleglosci[v, r];
                     v = r;
                 }
-                osobnicy[j].ocena = dlugoscTrasy;
+                this.populacja[j].ocena = dlugoscTrasy;
                 min = Math.Min(min, dlugoscTrasy);
             }
 
             double p = 0;
-            for(int j = 0; j < ilosc-1; j++)
+            for(int j = start; j < start+count-1; j++)
             {
-                p += min / osobnicy[j].ocena / ilosc;
-                osobnicy[j].ocena = p;
+                p += ((min)/(this.populacja[j].ocena*count));
+                this.populacja[j].p = p;
             }
-            osobnicy[ilosc - 1].ocena = 1;
+            this.populacja[start  + count - 1].p = 1;
         }
 
-        private Osobnik SelekcjaRuletka(Osobnik[] osobnicy, int ilosc)
+        public Osobnik SelekcjaRuletka(int ilosc)
         {
             double r = rnd.NextDouble();
             int left = 0, k;
             int right = ilosc;
             while(true)
             {
-                k = left + right / 2;
-                if(r <= osobnicy[k].ocena)
+                k = (left + right)/2;
+                if(r <= this.populacja[k].p)
                 {
                     if (k == left) break;
                     right = k;
@@ -119,29 +124,29 @@ namespace Komiwojazer
                     left = k;
                 }
             }
-            return osobnicy[k];
+            return this.populacja[k];
         }
 
-        private Osobnik SelekcjaBO3(Osobnik[] osobnicy, int ilosc) // best of three
+        public Osobnik SelekcjaBO3(int ilosc) // best of three
         {
             int r1 = rnd.Next(ilosc);
             int r2 = rnd.Next(ilosc);
             int r3 = rnd.Next(ilosc);
-            if(osobnicy[r1].ocena < osobnicy[r2].ocena)
+            if(this.populacja[r1].ocena < this.populacja[r2].ocena)
             {
-                return (osobnicy[r1].ocena < osobnicy[r3].ocena) ? osobnicy[r1] : osobnicy[r2];
+                return (this.populacja[r1].ocena < this.populacja[r3].ocena) ? this.populacja[r1] : this.populacja[r2];
             }
             else
             {
-                return (osobnicy[r2].ocena < osobnicy[r3].ocena) ? osobnicy[r2] : osobnicy[r3];
+                return (this.populacja[r2].ocena < this.populacja[r3].ocena) ? this.populacja[r2] : this.populacja[r3];
             }
         }
 
-        private Osobnik SelekcjaBO2(Osobnik[] osobnicy, int ilosc) // best of two
+        public Osobnik SelekcjaBO2(int ilosc) // best of two
         {
             int r1 = rnd.Next(ilosc);
             int r2 = rnd.Next(ilosc);
-            return (osobnicy[r1].ocena < osobnicy[r2].ocena) ? osobnicy[r1] : osobnicy[r2];
+            return (this.populacja[r1].ocena < this.populacja[r2].ocena) ? this.populacja[r1] : this.populacja[r2];
         }
 
         private void ResetVisited(ref bool[] visited)
@@ -152,12 +157,182 @@ namespace Komiwojazer
             }
         }
 
-        private Osobnik Krzyzuj(Osobnik rodzic1, Osobnik rodzic2, int size)
+        public Osobnik Krzyzuj(Osobnik rodzic1, Osobnik rodzic2, int size)
         {
             Osobnik dziecko = new Osobnik(size);
             bool[] visited = new bool[size];
             ResetVisited(ref visited);
+            HashSet<int> lista = new HashSet<int>();
+            List<int> lista2 = new List<int>(size);
+            for(int i = 1; i < size; i++)
+            {
+                lista.Add(i);
+            }
+            int v = 0;
+            visited[v] = true;
+            
+            while(lista.Count > 0)
+            {
+                int r = this.rnd.Next();
+                if(r % 2 == 0)
+                {
+                    int x = rodzic1.dna[v];
+                    if(visited[x])
+                    {
+                        x = rodzic2.dna[v];
+                    }
+                    if(visited[x])
+                    {
+                        dziecko.dna[v] = -1;
+                        v = lista.First();
+                        lista2.Add(v);
+                        lista.Remove(v);
+                        visited[v] = true;
+                        continue;
+                    }
+                    dziecko.dna[v] = x;
+                    v = x;
+                }
+                else
+                {
+                    int x = rodzic2.dna[v];
+                    if (visited[x])
+                    {
+                        x = rodzic1.dna[v];
+                    }
+                    if (visited[x])
+                    {
+                        dziecko.dna[v] = -1;
+                        v = lista.First();
+                        lista2.Add(v);
+                        lista.Remove(v);                  
+                        visited[v] = true;
+                        continue;
+                    }
+                    dziecko.dna[v] = x;
+                    v = x;
+                }
+                lista.Remove(v);
+                visited[v] = true;
+            }
 
+            dziecko.dna[v] = -1;
+            v = 0;
+
+            for(int i = 0; i < lista2.Count; i++)
+            {
+                visited[lista2[i]] = false;
+            }
+
+            for(int i = 1; i < size; i++)
+            {
+                if(dziecko.dna[v] != -1)
+                {
+                    v = dziecko.dna[v];
+                    continue;
+                }
+
+                int r = this.rnd.Next();
+                if(r % 2 == 0)
+                {
+                    int x = rodzic1.dna[v];
+                    if(visited[x])
+                    {
+                        x = rodzic2.dna[v];
+                    }
+                    if(visited[x])
+                    {
+                        r = this.rnd.Next(lista2.Count);
+                        x = lista2[r];
+                        lista2.RemoveAt(r);
+                    }
+                    else
+                    {
+                        lista2.Remove(x);
+                    }
+                    dziecko.dna[v] = x;
+                    v = x;
+                }
+                else
+                {
+                    int x = rodzic2.dna[v];
+                    if (visited[x])
+                    {
+                        x = rodzic1.dna[v];
+                    }
+                    if (visited[x])
+                    {
+                        r = this.rnd.Next(lista2.Count);
+                        x = lista2[r];
+                        lista2.RemoveAt(r);
+                    }
+                    else
+                    {
+                        lista2.Remove(x);
+                    }
+                    dziecko.dna[v] = x;
+                    v = x;
+                }
+                visited[v] = true;
+            }
+            dziecko.dna[v] = 0;
+            return dziecko;
+        }
+
+        public void Mutuj(ref Osobnik dziecko, int size, int count = 1)
+        {
+            for(int i = 0; i < count; i++)
+            {
+                int x = this.rnd.Next(size);
+                int y = this.rnd.Next(size);
+                while (y == x)
+                    y = this.rnd.Next(size);
+                int tmp = dziecko.dna[x];
+                dziecko.dna[x] = dziecko.dna[y];
+                dziecko.dna[y] = tmp;
+                int tmp2 = dziecko.dna[dziecko.dna[x]];
+                dziecko.dna[dziecko.dna[x]] = dziecko.dna[tmp];
+                dziecko.dna[tmp] = tmp2;
+            }
+        }
+
+        private void Sort(int start, int count)
+        {
+            for(int i = start; i < start+count; i++)
+            {
+                int j = i-1;
+                int k = i;
+                while(this.populacja[k].ocena < this.populacja[j].ocena)
+                {
+                    this.Swap<Osobnik>(ref this.populacja[k--], ref this.populacja[j--]);
+                    if (j < 0) break;
+                }
+            }
+        }
+
+        public void Start()
+        {
+            this.GenerujPopulacje();
+            MethodInfo methodOcena = this.GetType().GetMethod(this.config.funkcjaOceny);
+            MethodInfo methodSelekcja = this.GetType().GetMethod(this.config.metodaSelekcji);
+            int ilosc = this.config.rozmiarPopulacji;
+            int dzieciNaPokolenie = (int)(ilosc * this.config.wspolczynnikPotomkow);
+            methodOcena.Invoke(this, new object[] { 0, ilosc });
+            int pokolenie = 0;
+            object[] parameters = new object[] { ilosc };
+            while(pokolenie++ < this.config.iloscPokolen)
+            {
+                for(int i = ilosc; i < ilosc + dzieciNaPokolenie; i++)
+                {
+                    Osobnik rodzic1 = (Osobnik)methodSelekcja.Invoke(this, parameters);
+                    Osobnik rodzic2 = (Osobnik)methodSelekcja.Invoke(this, parameters);
+                    this.populacja[i] = this.Krzyzuj(rodzic1, rodzic2, this.g.size);
+                }
+                methodOcena.Invoke(this, new object[] { 0, ilosc+dzieciNaPokolenie });
+                this.Sort(1, ilosc+dzieciNaPokolenie-1);
+                Console.WriteLine("Pokolenie {0}", pokolenie);
+                Console.WriteLine(this.populacja[0]);
+            }
         }
     }
 }
