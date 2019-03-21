@@ -6,10 +6,10 @@ using System.Threading.Tasks;
 
 namespace Komiwojazer
 {
-    class Osobnik
+    class Osobnik : IComparable
     {
         public int[] dna { get; set; }
-        public double ocena { get; set; }
+        public int ocena { get; set; }
         public double p { get; set; }
         public Osobnik(int[] kod) : this(kod.Length)
         {
@@ -31,5 +31,19 @@ namespace Komiwojazer
            
             return "ocena: " + this.ocena + "\n[" + new Func<string>(() => { string val = ""; for (int i = 0; i < this.dna.Length; i++) val += this.dna[i] + ","; return val; })() + "]\n";
         }
+
+        public int CompareTo(object obj)
+        {
+            Osobnik other = (Osobnik)obj;
+            if(this.ocena < other.ocena)
+            {
+                return -1;
+            }
+            else
+            {
+                return 1;
+            }
+        }
+
     }
 }

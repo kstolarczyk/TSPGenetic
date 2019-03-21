@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
 using System.Text;
@@ -13,12 +14,14 @@ namespace Komiwojazer
         public Random rnd;
         public Osobnik[] populacja { get; set; }
         private Konfiguracja config { get; set; }
+        private Stopwatch watch { get; set; }
         public Genetyk(Graf graf, Konfiguracja konfiguracja)
         {
             this.g = graf;
             this.config = konfiguracja;
             this.rnd = new Random();
             this.GenerujPopulacje();
+            this.watch = new Stopwatch();
         }
 
         private void ShuffleArray(ref int[] array)
@@ -38,27 +41,51 @@ namespace Komiwojazer
             b = tmp;
         }
 
+        private Osobnik Zachlanny(int start)
+        {
+            int size = this.g.size;
+            Osobnik o = new Osobnik(size);
+            List<int> lista = new List<int>(size);
+            for(int i = 0; i < size; i++)
+            {
+                lista.Add(i);
+            }
+            lista.Remove(start);
+            int v = start;
+            while(lista.Count > 0)
+            {
+                o.dna[v] = this.Najblizszy(v, ref lista);
+                v = o.dna[v];
+            }
+            o.dna[v] = start;
+            return o;
+        }
+
         private void GenerujPopulacje()
         {
             int size = this.g.size;
             int ilosc = this.config.rozmiarPopulacji;
             int nadmiar = (int) Math.Floor(this.config.wspolczynnikPotomkow * ilosc);
             this.populacja = new Osobnik[ilosc + nadmiar];
-
+            int ileZachlannych = this.config.ileZachlannych;
+            for (int i = 0; i < ileZachlannych; i++)
+            {
+                this.populacja[i] = this.Zachlanny(this.rnd.Next(size));
+            }
             int[] kod = new int[size];
             for(int i = 0; i < size; i++)
             {
                 kod[i] = i;
             }
 
-            for(int i = 0; i < ilosc; i++)
+            for(int i = ileZachlannych; i < ilosc; i++)
             {
                 this.ShuffleArray(ref kod);
-                populacja[i] = new Osobnik(kod);
+                this.populacja[i] = new Osobnik(kod);
             }
         }
 
-        public void Ocen1(int start, int count)
+        public double Ocen1(int start, int count)
         {
             double avg = 0;
             for (int j = start; j < start+count; j++)
@@ -71,17 +98,19 @@ namespace Komiwojazer
                     dlugoscTrasy += this.g.odleglosci[v, r];
                     v = r;
                 }
-                this.populacja[j].ocena = dlugoscTrasy;
+                this.populacja[j].ocena = (int)dlugoscTrasy;
                 avg += dlugoscTrasy;
             }
-            Console.WriteLine("Średni dystans populacji: {0}", (avg/count));
+            avg /= count;
+            Console.WriteLine("Średni dystans populacji: {0}", avg);
+            return avg;
         }
 
 
 
-        public void Ocen2(int start, int count)
+        public double Ocen2(int start, int count)
         {
-            double min = double.PositiveInfinity;
+            double suma = 0;
             for (int j = start; j < start+count; j++)
             {
                 int v = 0;
@@ -92,17 +121,25 @@ namespace Komiwojazer
                     dlugoscTrasy += this.g.odleglosci[v, r];
                     v = r;
                 }
-                this.populacja[j].ocena = dlugoscTrasy;
-                min = Math.Min(min, dlugoscTrasy);
+                this.populacja[j].ocena = (int)dlugoscTrasy;
+                suma += dlugoscTrasy;
             }
 
-            double p = 0;
+            double sumap = 0;
+            for(int j = start; j < start+count; j++)
+            {
+                sumap += suma / this.populacja[j].ocena;
+                this.populacja[j].p = sumap;
+            }
+
             for(int j = start; j < start+count-1; j++)
             {
-                p += ((min)/(this.populacja[j].ocena*count));
-                this.populacja[j].p = p;
+                this.populacja[j].p /= sumap;
             }
+            suma /= count;
             this.populacja[start  + count - 1].p = 1;
+            Console.WriteLine("Średni dystans populacji: {0}", suma);
+            return suma;
         }
 
         public Osobnik SelekcjaRuletka(int ilosc)
@@ -127,11 +164,8 @@ namespace Komiwojazer
             return this.populacja[k];
         }
 
-        public Osobnik SelekcjaBO3(int ilosc) // best of three
+        public Osobnik SelekcjaBO3(int r1, int r2, int r3) // best of three
         {
-            int r1 = rnd.Next(ilosc);
-            int r2 = rnd.Next(ilosc);
-            int r3 = rnd.Next(ilosc);
             if(this.populacja[r1].ocena < this.populacja[r2].ocena)
             {
                 return (this.populacja[r1].ocena < this.populacja[r3].ocena) ? this.populacja[r1] : this.populacja[r2];
@@ -142,11 +176,19 @@ namespace Komiwojazer
             }
         }
 
-        public Osobnik SelekcjaBO2(int ilosc) // best of two
+        public Osobnik SelekcjaBO2(ref int r1, ref int r2) // best of two
         {
-            int r1 = rnd.Next(ilosc);
-            int r2 = rnd.Next(ilosc);
-            return (this.populacja[r1].ocena < this.populacja[r2].ocena) ? this.populacja[r1] : this.populacja[r2];
+            if(this.populacja[r1].ocena < this.populacja[r2].ocena)
+            {
+                return this.populacja[r1];
+            }
+            else
+            {
+                int temp = r2;
+                r2 = r1;
+                return this.populacja[temp];
+            }
+            //return (this.populacja[r1].ocena < this.populacja[r2].ocena) ? this.populacja[r1] : this.populacja[r2];
         }
 
         private void ResetVisited(ref bool[] visited)
@@ -155,6 +197,23 @@ namespace Komiwojazer
             {
                 visited[i] = false;
             }
+        }
+
+        private int Najblizszy(int current, ref List<int> lista2)
+        {
+            int index = lista2[0];
+            double min = this.g.odleglosci[current,index];
+            foreach(int a in lista2)
+            {
+                double odl = this.g.odleglosci[current, a];
+                if(odl < min)
+                {
+                    min = odl;
+                    index = a;
+                }
+            }
+            lista2.Remove(index);
+            return index;
         }
 
         public Osobnik Krzyzuj(Osobnik rodzic1, Osobnik rodzic2, int size)
@@ -242,9 +301,11 @@ namespace Komiwojazer
                     }
                     if(visited[x])
                     {
-                        r = this.rnd.Next(lista2.Count);
-                        x = lista2[r];
-                        lista2.RemoveAt(r);
+                        //r = this.rnd.Next(lista2.Count);
+                        //x = lista2[r];
+                        //lista2.RemoveAt(r);
+                        x = this.Najblizszy(v, ref lista2);
+                        
                     }
                     else
                     {
@@ -262,10 +323,12 @@ namespace Komiwojazer
                     }
                     if (visited[x])
                     {
-                        r = this.rnd.Next(lista2.Count);
-                        x = lista2[r];
-                        lista2.RemoveAt(r);
+                        //r = this.rnd.Next(lista2.Count);
+                        //x = lista2[r];
+                        //lista2.RemoveAt(r);
+                        x = this.Najblizszy(v, ref lista2);
                     }
+                
                     else
                     {
                         lista2.Remove(x);
@@ -310,29 +373,47 @@ namespace Komiwojazer
             }
         }
 
+
         public void Start()
         {
             this.GenerujPopulacje();
             MethodInfo methodOcena = this.GetType().GetMethod(this.config.funkcjaOceny);
             MethodInfo methodSelekcja = this.GetType().GetMethod(this.config.metodaSelekcji);
             int ilosc = this.config.rozmiarPopulacji;
+            int licznik = 1000;
             int dzieciNaPokolenie = (int)(ilosc * this.config.wspolczynnikPotomkow);
             methodOcena.Invoke(this, new object[] { 0, ilosc });
             int pokolenie = 0;
-            object[] parameters = new object[] { ilosc };
-            while(pokolenie++ < this.config.iloscPokolen)
+
+            watch.Start();
+            while(true && pokolenie++ < this.config.iloscPokolen)
             {
                 for(int i = ilosc; i < ilosc + dzieciNaPokolenie; i++)
                 {
-                    Osobnik rodzic1 = (Osobnik)methodSelekcja.Invoke(this, parameters);
-                    Osobnik rodzic2 = (Osobnik)methodSelekcja.Invoke(this, parameters);
+                    int r1 = this.rnd.Next(ilosc);
+                    int r2 = this.rnd.Next(ilosc);
+                    int r3 = this.rnd.Next(ilosc);
+                    object[] args = new object[] { r1, r2 };
+                    Osobnik rodzic1 = (Osobnik)methodSelekcja.Invoke(this, args);
+                    args[0] = r3;
+                    Osobnik rodzic2 = (Osobnik)methodSelekcja.Invoke(this, args);
                     this.populacja[i] = this.Krzyzuj(rodzic1, rodzic2, this.g.size);
+                    if(this.rnd.NextDouble() <= this.config.prawdMutacji)
+                    {
+                        this.Mutuj(ref this.populacja[i], this.g.size, 1);
+                    }
                 }
-                methodOcena.Invoke(this, new object[] { 0, ilosc+dzieciNaPokolenie });
-                this.Sort(1, ilosc+dzieciNaPokolenie-1);
-                Console.WriteLine("Pokolenie {0}", pokolenie);
-                Console.WriteLine(this.populacja[0]);
+                double avg = (double)methodOcena.Invoke(this, new object[] { 0, ilosc+dzieciNaPokolenie });
+                Array.Sort(this.populacja);
+                Console.WriteLine("Najlepszy wynik: {0};\tLicz.pokoleń/sek: {1}", this.populacja[0].ocena, (pokolenie*1000.0/watch.ElapsedMilliseconds));
+                if(avg <= this.populacja[0].ocena*1.002 && licznik-- < 0)
+                {
+                    break;
+                }
             }
+            watch.Stop();
+            Console.WriteLine("Pokolenie {0}", pokolenie-1);
+            Console.WriteLine(this.populacja[0]);
         }
     }
 }

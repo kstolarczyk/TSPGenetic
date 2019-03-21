@@ -17,8 +17,8 @@ namespace Komiwojazer
             try
             {
                 Graf graf = new Graf(fileName);
-                Console.WriteLine(graf.ToString());
-                Konfiguracja conf = new Konfiguracja(1000, 0.3, 500, "SelekcjaRuletka", "Ocen2");
+                //Console.WriteLine(graf.ToString());
+                Konfiguracja conf = new Konfiguracja(200, 1, 0.03, 5000, 0, "SelekcjaBO2", "Ocen1");
                 Genetyk gen = new Genetyk(graf, conf);
                 gen.Start();
                

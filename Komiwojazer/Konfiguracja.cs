@@ -13,14 +13,17 @@ namespace Komiwojazer
         public int iloscPokolen { get; set; } // maksymalna liczba pokoleń do zatrzymania algorytmu
         public string metodaSelekcji { get; set; } // nazwa metody selekcji w klasie Genetyk
         public string funkcjaOceny { get; set; } // nazwa funkcji oceny w klasie Genetyk
-
-        public Konfiguracja(int rozmiarPopulacji, double wspolczynnikPotomkow, int iloscPokolen, string metodaSelekcji, string funkcjaOceny)
+        public double prawdMutacji { get; set; } // prawdopodobienstwo mutacji potomka
+        public int ileZachlannych { get; set; } // ilosc zachlannie wygenerowanych osobnikow na poczatku
+        public Konfiguracja(int rozmiarPopulacji, double wspolczynnikPotomkow, double prawdMutacji, int maxPokolen, int ileZachlannych, string metodaSelekcji, string funkcjaOceny)
         {
             this.rozmiarPopulacji = rozmiarPopulacji;
             this.wspolczynnikPotomkow = wspolczynnikPotomkow;
-            this.iloscPokolen = iloscPokolen;
+            this.iloscPokolen = maxPokolen;
             this.metodaSelekcji = metodaSelekcji;
             this.funkcjaOceny = funkcjaOceny;
+            this.prawdMutacji = prawdMutacji;
+            this.ileZachlannych = ileZachlannych;
         }
     }
 }
