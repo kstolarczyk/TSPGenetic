@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Komiwojazer
@@ -29,7 +30,7 @@ namespace Komiwojazer
             int len = array.Length;
             for(int i = len-1; i > 0; i--)
             {
-                int j = rnd.Next(0, i+1);
+                int j = RandomGen.Next(0, i+1);
                 this.Swap<int>(ref array[i], ref array[j]);
             }
         }
@@ -87,8 +88,8 @@ namespace Komiwojazer
 
         public double Ocen1(int start, int count)
         {
-            double avg = 0;
-            for (int j = start; j < start+count; j++)
+            int total = 0;
+            Parallel.For<int>(start, start + count, () => 0, (j, loop, subtotal) =>
             {
                 int v = 0;
                 double dlugoscTrasy = 0;
@@ -99,9 +100,12 @@ namespace Komiwojazer
                     v = r;
                 }
                 this.populacja[j].ocena = (int)dlugoscTrasy;
-                avg += dlugoscTrasy;
-            }
-            avg /= count;
+                subtotal += (int)Math.Round(dlugoscTrasy);
+                return subtotal;
+            },
+            (x) => { Interlocked.Add(ref total, x); });
+
+            double avg = total / count;
             Console.WriteLine("Średni dystans populacji: {0}", avg);
             return avg;
         }
@@ -186,9 +190,8 @@ namespace Komiwojazer
             {
                 int temp = r2;
                 r2 = r1;
-                return this.populacja[temp];
+                return populacja[temp];
             }
-            //return (this.populacja[r1].ocena < this.populacja[r2].ocena) ? this.populacja[r1] : this.populacja[r2];
         }
 
         private void ResetVisited(ref bool[] visited)
@@ -232,7 +235,7 @@ namespace Komiwojazer
             
             while(lista.Count > 0)
             {
-                int r = this.rnd.Next();
+                int r = RandomGen.Next(2);
                 if(r % 2 == 0)
                 {
                     int x = rodzic1.dna[v];
@@ -291,7 +294,7 @@ namespace Komiwojazer
                     continue;
                 }
 
-                int r = this.rnd.Next();
+                int r = RandomGen.Next(2);
                 if(r % 2 == 0)
                 {
                     int x = rodzic1.dna[v];
@@ -301,11 +304,11 @@ namespace Komiwojazer
                     }
                     if(visited[x])
                     {
-                        //r = this.rnd.Next(lista2.Count);
-                        //x = lista2[r];
-                        //lista2.RemoveAt(r);
-                        x = this.Najblizszy(v, ref lista2);
-                        
+                        r = RandomGen.Next(lista2.Count);
+                        x = lista2[r];
+                        lista2.RemoveAt(r);
+                        //x = this.Najblizszy(v, ref lista2);
+
                     }
                     else
                     {
@@ -323,10 +326,10 @@ namespace Komiwojazer
                     }
                     if (visited[x])
                     {
-                        //r = this.rnd.Next(lista2.Count);
-                        //x = lista2[r];
-                        //lista2.RemoveAt(r);
-                        x = this.Najblizszy(v, ref lista2);
+                        r = RandomGen.Next(lista2.Count);
+                        x = lista2[r];
+                        lista2.RemoveAt(r);
+                        //x = this.Najblizszy(v, ref lista2);
                     }
                 
                     else
@@ -346,10 +349,10 @@ namespace Komiwojazer
         {
             for(int i = 0; i < count; i++)
             {
-                int x = this.rnd.Next(size);
-                int y = this.rnd.Next(size);
+                int x = RandomGen.Next(size);
+                int y = RandomGen.Next(size);
                 while (y == x)
-                    y = this.rnd.Next(size);
+                    y = RandomGen.Next(size);
                 int tmp = dziecko.dna[x];
                 dziecko.dna[x] = dziecko.dna[y];
                 dziecko.dna[y] = tmp;
@@ -365,9 +368,9 @@ namespace Komiwojazer
             {
                 int j = i-1;
                 int k = i;
-                while(this.populacja[k].ocena < this.populacja[j].ocena)
+                while(populacja[k].ocena < populacja[j].ocena)
                 {
-                    this.Swap<Osobnik>(ref this.populacja[k--], ref this.populacja[j--]);
+                    this.Swap<Osobnik>(ref populacja[k--], ref populacja[j--]);
                     if (j < 0) break;
                 }
             }
@@ -384,25 +387,27 @@ namespace Komiwojazer
             int dzieciNaPokolenie = (int)(ilosc * this.config.wspolczynnikPotomkow);
             methodOcena.Invoke(this, new object[] { 0, ilosc });
             int pokolenie = 0;
-
             watch.Start();
             while(true && pokolenie++ < this.config.iloscPokolen)
             {
-                for(int i = ilosc; i < ilosc + dzieciNaPokolenie; i++)
+                Parallel.For(ilosc, ilosc + dzieciNaPokolenie, (i) =>
                 {
-                    int r1 = this.rnd.Next(ilosc);
-                    int r2 = this.rnd.Next(ilosc);
-                    int r3 = this.rnd.Next(ilosc);
+                    int r1 = RandomGen.Next(ilosc);
+                    int r2 = RandomGen.Next(ilosc);
+                    int r3 = RandomGen.Next(ilosc);
                     object[] args = new object[] { r1, r2 };
                     Osobnik rodzic1 = (Osobnik)methodSelekcja.Invoke(this, args);
                     args[0] = r3;
+                    args[1] = RandomGen.Next(ilosc);
                     Osobnik rodzic2 = (Osobnik)methodSelekcja.Invoke(this, args);
                     this.populacja[i] = this.Krzyzuj(rodzic1, rodzic2, this.g.size);
-                    if(this.rnd.NextDouble() <= this.config.prawdMutacji)
+                    if (RandomGen.NextDouble() <= this.config.prawdMutacji)
                     {
                         this.Mutuj(ref this.populacja[i], this.g.size, 1);
                     }
-                }
+
+                });
+
                 double avg = (double)methodOcena.Invoke(this, new object[] { 0, ilosc+dzieciNaPokolenie });
                 Array.Sort(this.populacja);
                 Console.WriteLine("Najlepszy wynik: {0};\tLicz.pokoleń/sek: {1}", this.populacja[0].ocena, (pokolenie*1000.0/watch.ElapsedMilliseconds));
