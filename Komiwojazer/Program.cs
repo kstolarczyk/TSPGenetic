@@ -18,10 +18,9 @@ namespace Komiwojazer
             {
                 Graf graf = new Graf(fileName);
                 //Console.WriteLine(graf.ToString());
-                Konfiguracja conf = new Konfiguracja(1000, 1, 0.03, 5000, 5, "SelekcjaBO2", "Ocen1");
+                Konfiguracja conf = new Konfiguracja(1000, 1, 0.03, 5000, 0, "SelekcjaBO2", "Ocen1");
                 Genetyk gen = new Genetyk(graf, conf);
                 gen.Start();
-               
             }
             catch(FileNotFoundException e)
             {

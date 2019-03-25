@@ -304,10 +304,10 @@ namespace Komiwojazer
                     }
                     if(visited[x])
                     {
-                        r = RandomGen.Next(lista2.Count);
-                        x = lista2[r];
-                        lista2.RemoveAt(r);
-                        //x = this.Najblizszy(v, ref lista2);
+                        //r = RandomGen.Next(lista2.Count);
+                        //x = lista2[r];
+                        //lista2.RemoveAt(r);
+                        x = this.Najblizszy(v, ref lista2);
 
                     }
                     else
@@ -326,10 +326,10 @@ namespace Komiwojazer
                     }
                     if (visited[x])
                     {
-                        r = RandomGen.Next(lista2.Count);
-                        x = lista2[r];
-                        lista2.RemoveAt(r);
-                        //x = this.Najblizszy(v, ref lista2);
+                        //r = RandomGen.Next(lista2.Count);
+                        //x = lista2[r];
+                        //lista2.RemoveAt(r);
+                        x = this.Najblizszy(v, ref lista2);
                     }
                 
                     else
