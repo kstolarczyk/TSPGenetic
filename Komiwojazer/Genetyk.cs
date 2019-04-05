@@ -62,14 +62,17 @@ namespace Komiwojazer
             return o;
         }
 
-        private void GenerujPopulacje()
+        private void GenerujPopulacje(bool alreadyGenerated = false)
         {
             int size = this.g.size;
             int ilosc = this.config.rozmiarPopulacji;
-            int nadmiar = (int) Math.Floor(this.config.wspolczynnikPotomkow * ilosc);
-            this.populacja = new Osobnik[ilosc + nadmiar];
             int ileZachlannych = this.config.ileZachlannych;
-            for (int i = 0; i < ileZachlannych; i++)
+            int start = 0;
+
+            int nadmiar = (int)Math.Floor(this.config.wspolczynnikPotomkow * ilosc);
+            this.populacja = new Osobnik[ilosc + nadmiar];
+          
+            for (int i = start; i < ileZachlannych; i++)
             {
                 this.populacja[i] = this.Zachlanny(this.rnd.Next(size));
             }
@@ -78,7 +81,7 @@ namespace Komiwojazer
             {
                 kod[i] = i;
             }
-
+        
             for(int i = ileZachlannych; i < ilosc; i++)
             {
                 this.ShuffleArray(ref kod);
@@ -106,6 +109,7 @@ namespace Komiwojazer
             (x) => { Interlocked.Add(ref total, x); });
 
             double avg = total / count;
+            Console.Clear();
             Console.WriteLine("Średni dystans populacji: {0}", avg);
             return avg;
         }
@@ -383,7 +387,7 @@ namespace Komiwojazer
             MethodInfo methodOcena = this.GetType().GetMethod(this.config.funkcjaOceny);
             MethodInfo methodSelekcja = this.GetType().GetMethod(this.config.metodaSelekcji);
             int ilosc = this.config.rozmiarPopulacji;
-            int licznik = 1000;
+            int licznik = 500;
             int dzieciNaPokolenie = (int)(ilosc * this.config.wspolczynnikPotomkow);
             methodOcena.Invoke(this, new object[] { 0, ilosc });
             int pokolenie = 0;
@@ -407,13 +411,21 @@ namespace Komiwojazer
                     }
 
                 });
+              
 
                 double avg = (double)methodOcena.Invoke(this, new object[] { 0, ilosc+dzieciNaPokolenie });
+                
                 Array.Sort(this.populacja);
+               
+            
                 Console.WriteLine("Najlepszy wynik: {0};\tLicz.pokoleń/sek: {1}", this.populacja[0].ocena, (pokolenie*1000.0/watch.ElapsedMilliseconds));
                 if(avg <= this.populacja[0].ocena*1.002 && licznik-- < 0)
                 {
                     break;
+                }
+                else
+                {
+                    licznik++;
                 }
             }
             watch.Stop();
