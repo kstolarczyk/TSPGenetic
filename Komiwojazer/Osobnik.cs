@@ -34,6 +34,10 @@ namespace Komiwojazer
 
         public int CompareTo(object obj)
         {
+            if (obj == null || this == null)
+            {
+                return 1;
+            }
             Osobnik other = (Osobnik)obj;
             if(this.ocena < other.ocena)
             {

@@ -16,6 +16,7 @@ namespace Komiwojazer
         public Osobnik[] populacja { get; set; }
         private Konfiguracja config { get; set; }
         private Stopwatch watch { get; set; }
+        private static object mtx = new object();
         public Genetyk(Graf graf, Konfiguracja konfiguracja)
         {
             this.g = graf;
@@ -91,8 +92,8 @@ namespace Komiwojazer
 
         public double Ocen1(int start, int count)
         {
-            int total = 0;
-            Parallel.For<int>(start, start + count, () => 0, (j, loop, subtotal) =>
+            double total = 0;
+            Parallel.For<double>(start, start + count, () => 0, (j, loop, local) =>
             {
                 int v = 0;
                 double dlugoscTrasy = 0;
@@ -103,14 +104,15 @@ namespace Komiwojazer
                     v = r;
                 }
                 this.populacja[j].ocena = (int)dlugoscTrasy;
-                subtotal += (int)Math.Round(dlugoscTrasy);
-                return subtotal;
+                local += dlugoscTrasy;
+                return local;
             },
-            (x) => { Interlocked.Add(ref total, x); });
+            (x) => { lock (mtx) { total += x; }  });
 
             double avg = total / count;
             Console.Clear();
             Console.WriteLine("Średni dystans populacji: {0}", avg);
+            Array.Sort(this.populacja, (a,b) => a == null ? 1 : b == null ? -1 : a.CompareTo(b));
             return avg;
         }
 
@@ -118,83 +120,107 @@ namespace Komiwojazer
 
         public double Ocen2(int start, int count)
         {
-            double suma = 0;
-            for (int j = start; j < start+count; j++)
+            double avg = this.Ocen1(start, count);
+            double totalp = 0;
+            int ilosc = this.config.rozmiarPopulacji;
+            Parallel.For<double>(0, ilosc, () => 0, (j, loop, local) =>
             {
-                int v = 0;
-                double dlugoscTrasy = 0;
-                for (int i = 0; i < this.g.size; i++)
-                {
-                    int r = this.populacja[j].dna[v];
-                    dlugoscTrasy += this.g.odleglosci[v, r];
-                    v = r;
-                }
-                this.populacja[j].ocena = (int)dlugoscTrasy;
-                suma += dlugoscTrasy;
-            }
+                double p = 1.0 / this.populacja[j].ocena;
+                this.populacja[j].p = p;
+                local += p;
+                return local;
+            },
+            (x) => { lock (mtx) { totalp += x; } });
 
-            double sumap = 0;
-            for(int j = start; j < start+count; j++)
-            {
-                sumap += suma / this.populacja[j].ocena;
-                this.populacja[j].p = sumap;
-            }
+            double currentp = 0;
 
-            for(int j = start; j < start+count-1; j++)
+            for(int j = 0; j < ilosc-1; j++)
             {
-                this.populacja[j].p /= sumap;
+                currentp += this.populacja[j].p / totalp;
+                this.populacja[j].p = currentp;
             }
-            suma /= count;
-            this.populacja[start  + count - 1].p = 1;
-            Console.WriteLine("Średni dystans populacji: {0}", suma);
-            return suma;
+            this.populacja[ilosc - 1].p = 1;
+            return avg;
         }
 
-        public Osobnik SelekcjaRuletka(int ilosc)
+        public void SelekcjaRuletka(out Osobnik rodzic1, out Osobnik rodzic2)
         {
-            double r = rnd.NextDouble();
-            int left = 0, k;
-            int right = ilosc;
-            while(true)
+            int ilosc = this.config.rozmiarPopulacji;
+            double r1 = RandomGen.NextDouble();
+            double r2 = RandomGen.NextDouble();
+            rodzic1 = this.binarySearch(0, ilosc, r1);
+            rodzic2 = this.binarySearch(0, ilosc, r2);
+        }
+
+        public Osobnik binarySearch(int left, int right, double r)
+        {
+            int k;
+            while (true)
             {
-                k = (left + right)/2;
-                if(r <= this.populacja[k].p)
+                k = (left + right) / 2;
+                if (r <= this.populacja[k].p)
                 {
                     if (k == left) break;
                     right = k;
                 }
                 else
                 {
-                    if(k == left) { k = right; break; }
+                    if (k == left) { k = right; break; }
                     left = k;
                 }
             }
             return this.populacja[k];
         }
 
-        public Osobnik SelekcjaBO3(int r1, int r2, int r3) // best of three
+        public void SelekcjaBO3(out Osobnik rodzic1, out Osobnik rodzic2) // best of three
         {
-            if(this.populacja[r1].ocena < this.populacja[r2].ocena)
+            int ilosc = this.config.rozmiarPopulacji;
+            int r1 = RandomGen.Next(ilosc);
+            int r2 = RandomGen.Next(ilosc);
+            int r3 = RandomGen.Next(ilosc);
+            int r4 = RandomGen.Next(ilosc);
+            int r5 = RandomGen.Next(ilosc);
+            int r6 = RandomGen.Next(ilosc);
+            if (this.populacja[r1].ocena < this.populacja[r2].ocena)
             {
-                return (this.populacja[r1].ocena < this.populacja[r3].ocena) ? this.populacja[r1] : this.populacja[r2];
+                rodzic1 = (this.populacja[r1].ocena < this.populacja[r3].ocena) ? this.populacja[r1] : this.populacja[r3];
             }
             else
             {
-                return (this.populacja[r2].ocena < this.populacja[r3].ocena) ? this.populacja[r2] : this.populacja[r3];
+                rodzic1 = (this.populacja[r2].ocena < this.populacja[r3].ocena) ? this.populacja[r2] : this.populacja[r3];
+            }
+            if (this.populacja[r4].ocena < this.populacja[r5].ocena)
+            {
+                rodzic2 = (this.populacja[r4].ocena < this.populacja[r6].ocena) ? this.populacja[r4] : this.populacja[r6];
+            }
+            else
+            {
+                rodzic2 = (this.populacja[r5].ocena < this.populacja[r6].ocena) ? this.populacja[r5] : this.populacja[r6];
             }
         }
 
-        public Osobnik SelekcjaBO2(ref int r1, ref int r2) // best of two
+        public void SelekcjaBO2(out Osobnik rodzic1, out Osobnik rodzic2) // best of two
         {
-            if(this.populacja[r1].ocena < this.populacja[r2].ocena)
+            int ilosc = this.config.rozmiarPopulacji;
+            int r1 = RandomGen.Next(ilosc);
+            int r2 = RandomGen.Next(ilosc);
+            int r3 = RandomGen.Next(ilosc);
+            int r4 = RandomGen.Next(ilosc);
+            if (this.populacja[r1].ocena < this.populacja[r2].ocena)
             {
-                return this.populacja[r1];
+                rodzic1 = this.populacja[r1];
             }
             else
             {
-                int temp = r2;
-                r2 = r1;
-                return populacja[temp];
+                rodzic1 = this.populacja[r2];
+            }
+            if (this.populacja[r3].ocena < this.populacja[r4].ocena)
+            {
+                rodzic2 = this.populacja[r3];
+            }
+            else
+            {
+                rodzic2 = this.populacja[r4];
             }
         }
 
@@ -387,7 +413,7 @@ namespace Komiwojazer
             MethodInfo methodOcena = this.GetType().GetMethod(this.config.funkcjaOceny);
             MethodInfo methodSelekcja = this.GetType().GetMethod(this.config.metodaSelekcji);
             int ilosc = this.config.rozmiarPopulacji;
-            int licznik = 500;
+            int licznik = 100;
             int dzieciNaPokolenie = (int)(ilosc * this.config.wspolczynnikPotomkow);
             methodOcena.Invoke(this, new object[] { 0, ilosc });
             int pokolenie = 0;
@@ -396,14 +422,9 @@ namespace Komiwojazer
             {
                 Parallel.For(ilosc, ilosc + dzieciNaPokolenie, (i) =>
                 {
-                    int r1 = RandomGen.Next(ilosc);
-                    int r2 = RandomGen.Next(ilosc);
-                    int r3 = RandomGen.Next(ilosc);
-                    object[] args = new object[] { r1, r2 };
-                    Osobnik rodzic1 = (Osobnik)methodSelekcja.Invoke(this, args);
-                    args[0] = r3;
-                    args[1] = RandomGen.Next(ilosc);
-                    Osobnik rodzic2 = (Osobnik)methodSelekcja.Invoke(this, args);
+                    object[] parameters = new object[] { null, null };
+                    methodSelekcja.Invoke(this, parameters);
+                    Osobnik rodzic1 = parameters[0] as Osobnik, rodzic2 = parameters[1] as Osobnik;
                     this.populacja[i] = this.Krzyzuj(rodzic1, rodzic2, this.g.size);
                     if (RandomGen.NextDouble() <= this.config.prawdMutacji)
                     {
@@ -413,13 +434,10 @@ namespace Komiwojazer
                 });
               
 
-                double avg = (double)methodOcena.Invoke(this, new object[] { 0, ilosc+dzieciNaPokolenie });
-                
-                Array.Sort(this.populacja);
-               
+                double avg = (double)methodOcena.Invoke(this, new object[] { ilosc, dzieciNaPokolenie });
             
                 Console.WriteLine("Najlepszy wynik: {0};\tLicz.pokoleń/sek: {1}", this.populacja[0].ocena, (pokolenie*1000.0/watch.ElapsedMilliseconds));
-                if(avg <= this.populacja[0].ocena*1.002 && licznik-- < 0)
+                if(avg <= this.populacja[0].ocena*1.003 && licznik-- < 0)
                 {
                     break;
                 }
